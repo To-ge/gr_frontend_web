@@ -7,7 +7,6 @@ import { ScenegraphLayer, SimpleMeshLayer } from "@deck.gl/mesh-layers";
 import { PickingInfo } from "@deck.gl/core";
 import Live from "@/components/map/mode/Live";
 import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted';
-import { OBJLoader } from "@loaders.gl/obj";
 
 export default function Map() {
   const [openedMenu, setOpenedMenu] = useState(false)
@@ -87,7 +86,7 @@ export default function Map() {
       scenegraph: "/sphere.glb", // モデルファイルのパス
       getPosition: (d) => d.position,
       getScale: (d) => [d.scale, d.scale, d.scale],
-      loaders: [OBJLoader]
+      // loaders: [OBJLoader]
     }),
   ];
 
