@@ -30,7 +30,6 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-      <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDfZZG2OfgtTYgvhi5a3qX9BjZQ3OMwPyo"></script>
         <div className="w-screen h-screen relative">
           {children}
           <div className="absolute bottom-16 left-0 z-30 fixed">

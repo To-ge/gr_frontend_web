@@ -1,14 +1,13 @@
 'use client'
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import DeckGL from "@deck.gl/react";
 import { Tile3DLayer } from "@deck.gl/geo-layers";
-import { ColumnLayer, ScatterplotLayer } from "@deck.gl/layers";
 import { ScenegraphLayer, SimpleMeshLayer } from "@deck.gl/mesh-layers";
 import { PickingInfo } from "@deck.gl/core";
-import Menu from "@/components/MenuBar";
 import Live from "@/components/map/mode/Live";
 import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted';
+import { OBJLoader } from "@loaders.gl/obj";
 
 export default function Map() {
   const [openedMenu, setOpenedMenu] = useState(false)
@@ -27,11 +26,11 @@ export default function Map() {
   //   { position: [130.5581, 31.5965, 100], elevation: 100, color: [0, 255, 0] },
   //   { position: [130.5591, 31.5965, 100], elevation: 100, color: [0, 0, 255] },
   // ];
-  const columnData = [
-    { position: [130.5571, 31.5965], radius: 5, height: 100, color: [255, 0, 0] },
-    { position: [130.5581, 31.5965], radius: 5, height: 200, color: [0, 255, 0] },
-    { position: [130.5591, 31.5965], radius: 5, height: 300, color: [0, 0, 255] },
-  ];
+  // const columnData = [
+  //   { position: [130.5571, 31.5965], radius: 5, height: 100, color: [255, 0, 0] },
+  //   { position: [130.5581, 31.5965], radius: 5, height: 200, color: [0, 255, 0] },
+  //   { position: [130.5591, 31.5965], radius: 5, height: 300, color: [0, 0, 255] },
+  // ];
   const sphereData = [
     { position: [130.5571, 31.5965, 300], scale: 10 },
   ];
@@ -67,7 +66,7 @@ export default function Map() {
       data: 'https://raw.githubusercontent.com/visgl/deck.gl-data/master/website/bart-stations.json',
       
       getColor: (d) => [Math.sqrt(d.exits), 140, 0],
-      getOrientation: (d) => [0, Math.random() * 180, 0],
+      getOrientation: () => [0, Math.random() * 180, 0],
       getPosition: (d) => d.coordinates,
       mesh: 'https://raw.githubusercontent.com/visgl/deck.gl-data/master/website/humanoid_quad.obj',
       sizeScale: 30,
@@ -88,6 +87,7 @@ export default function Map() {
       scenegraph: "/sphere.glb", // モデルファイルのパス
       getPosition: (d) => d.position,
       getScale: (d) => [d.scale, d.scale, d.scale],
+      loaders: [OBJLoader]
     }),
   ];
 
@@ -117,8 +117,8 @@ export default function Map() {
           <div className="absolute top-0 left-0 w-screen h-screen bg-black bg-opacity-70 z-50 flex justify-center items-center" onClick={()=>setOpenedMenu(false)}>
             <div className="bg-white p-5 rounded-md flex flex-col items-center space-y-5" onClick={(event) => event.stopPropagation()}>
               {
-                mapMode.map((mode)=>(
-                  <button onClick={mode.func} className="bg-teal-500 text-black text-xl w-36 h-12 rounded-md hover:bg-teal-700">{mode.name}</button>
+                mapMode.map((mode,i)=>(
+                  <button key={i} onClick={mode.func} className="bg-teal-500 text-black text-xl w-36 h-12 rounded-md hover:bg-teal-700">{mode.name}</button>
                 ))
               }
             </div>
