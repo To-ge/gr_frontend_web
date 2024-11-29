@@ -13,6 +13,8 @@ import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted';
 export default function Map() {
   const [openedMenu, setOpenedMenu] = useState(false)
   const initialViewState = {
+    // latitude: 31.568378,
+    // longitude: 130.710540,
     latitude: 31.5965,
     longitude: 130.5571,
     zoom: 16,
