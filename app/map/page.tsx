@@ -4,9 +4,17 @@ import React, { useMemo, useState } from "react";
 import DeckGL from "@deck.gl/react";
 import { Tile3DLayer } from "@deck.gl/geo-layers";
 import { ScenegraphLayer, SimpleMeshLayer } from "@deck.gl/mesh-layers";
-import { PickingInfo } from "@deck.gl/core";
+import { COORDINATE_SYSTEM, PickingInfo } from "@deck.gl/core";
 import Live from "@/components/map/mode/Live";
 import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted';
+import { OBJLoader } from "@loaders.gl/obj";
+import { PointCloudLayer } from "@deck.gl/layers";
+
+type DataType = {
+  position: [x: number, y: number, z: number];
+  normal: [nx: number, ny: number, nz: number];
+  color: [r: number, g: number, b: number];
+};
 
 export default function Map() {
   const [openedMenu, setOpenedMenu] = useState(false)
@@ -60,17 +68,17 @@ export default function Map() {
     //     depthTest: false, // 深度テストを無効化
     //   },
     // }),
-    new SimpleMeshLayer({
-      id: 'SimpleMeshLayer',
-      data: 'https://raw.githubusercontent.com/visgl/deck.gl-data/master/website/bart-stations.json',
+    // new SimpleMeshLayer({
+    //   id: 'SimpleMeshLayer',
+    //   data: 'https://raw.githubusercontent.com/visgl/deck.gl-data/master/website/bart-stations.json',
       
-      getColor: (d) => [Math.sqrt(d.exits), 140, 0],
-      getOrientation: () => [0, Math.random() * 180, 0],
-      getPosition: (d) => d.coordinates,
-      mesh: 'https://raw.githubusercontent.com/visgl/deck.gl-data/master/website/humanoid_quad.obj',
-      sizeScale: 30,
-      pickable: true,
-    }),
+    //   getColor: (d) => [Math.sqrt(d.exits), 140, 0],
+    //   getOrientation: () => [0, Math.random() * 180, 0],
+    //   getPosition: (d) => d.coordinates,
+    //   mesh: 'https://raw.githubusercontent.com/visgl/deck.gl-data/master/website/humanoid_quad.obj',
+    //   sizeScale: 30,
+    //   pickable: true,
+    // }),
     // new ColumnLayer({
     //   id: "column-layer",
     //   data: columnData,
@@ -84,10 +92,24 @@ export default function Map() {
       id: "scenegraph-layer",
       data: sphereData,
       scenegraph: "/sphere.glb", // モデルファイルのパス
+      // scenegraph: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/BoxAnimated/glTF-Binary/BoxAnimated.glb', // モデルファイルのパス
       getPosition: (d) => d.position,
       getScale: (d) => [d.scale, d.scale, d.scale],
-      // loaders: [OBJLoader]
+      _lighting: 'pbr',
+      pickable: true
     }),
+    // new PointCloudLayer<DataType>({
+    //   id: 'PointCloudLayer',
+    //   data: 'https://raw.githubusercontent.com/visgl/deck.gl-data/master/website/pointcloud.json',
+      
+    //   getColor: (d: DataType) => d.color,
+    //   getNormal: (d: DataType) => d.normal,
+    //   getPosition: (d: DataType) => d.position,
+    //   pointSize: 2,
+    //   coordinateOrigin: [130.55, 31.59, 100],
+    //   coordinateSystem: COORDINATE_SYSTEM.METER_OFFSETS,
+    //   pickable: true
+    // }),
   ];
 
   const mapMode = useMemo(()=>{
@@ -126,7 +148,7 @@ export default function Map() {
       }
       <DeckGL
         initialViewState={initialViewState}
-        controller={true}
+        controller
         getTooltip={({object}: PickingInfo) => object && object.name}
         layers={layers}
         style={{ width: "100%", height: "100%"}}
