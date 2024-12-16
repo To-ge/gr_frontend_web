@@ -32,7 +32,7 @@ export default function RootLayout({
       >
         <div className="w-screen h-screen relative">
           {children}
-          <div className="absolute bottom-16 left-0 z-30 fixed">
+          <div className="absolute bottom-0 left-0 z-30 fixed">
             <Menu />
           </div>
         </div>
