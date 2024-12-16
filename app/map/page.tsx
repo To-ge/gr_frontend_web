@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import DeckGL from "@deck.gl/react";
 import { Tile3DLayer } from "@deck.gl/geo-layers";
 import { ScenegraphLayer } from "@deck.gl/mesh-layers";
@@ -10,6 +10,7 @@ import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted';
 import "react-toastify/dist/ReactToastify.css";
 import { toast, ToastContainer } from "react-toastify";
 
+const apiHost = process.env.NEXT_PUBLIC_API_HOST || "http://localhost:8000"
 
 type MapData = {
   position: [x: number, y: number, z: number];
@@ -39,13 +40,13 @@ export default function Map() {
     onLiveRef.current = onLive;
   }, [onLive]);
 
-  const fetchLiveStream = useCallback(async () => {
+  const fetchLiveStream = async () => {
     console.log("live stream")
     const controller = new AbortController();
 
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_HOST}/api/v1/stream/location/live`,
+        `${apiHost}/api/v1/stream/location/live`,
         { signal: controller.signal }
       );
       console.log(response)
@@ -109,7 +110,7 @@ export default function Map() {
       setMapData([])
       setOnLive(false)
     }
-  },[]);
+  };
 
   console.log(mapData)
   // const sphereData = [
