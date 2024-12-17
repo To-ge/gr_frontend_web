@@ -31,8 +31,10 @@ export default function Map() {
   const [onArchive, setOnArchive] = useState(false)
   const [archiveList, setArchiveList] = useState<Array<TimeLog>>([])
   const [openedArchiveList, setOpenedArchiveList] = useState(false)
+  const [openedDownloadModal, setOpenedDownloadModal] = useState(false)
   const onLiveRef = useRef(false)
   const onArchiveRef = useRef(false)
+  const [records, setRecords] = useState<string[]>([]);
 
   const initialViewState = {
     // latitude: 31.568378,
@@ -60,7 +62,6 @@ export default function Map() {
       }
       const data = await response.json()
       setArchiveList(data.logs)
-      console.log(archiveList)
     } catch (error) {
       if (error instanceof Error) {
         console.error('error:', error);
@@ -116,7 +117,7 @@ export default function Map() {
             console.log(parsedData)
             const formatedData: MapData = {position:[parsedData.longitude, parsedData.latitude, parsedData.altitude], scale: 3}
             setMapData((prevData) => [...prevData, formatedData]); // リアルタイム更新
-            // console.log(mapData)
+            recordTime(`${formatedData.position[0]},${formatedData.position[1]},${formatedData.position[2]}`)
           }
         });
       }
@@ -142,6 +143,7 @@ export default function Map() {
     } finally {
       setMapData([])
       setOnLive(false)
+      setOpenedDownloadModal(true)
     }
   };
 
@@ -227,6 +229,7 @@ export default function Map() {
   };
 
   console.log(mapData)
+  console.log(records)
   // const sphereData = [
   //   { position: [130.5571, 31.5965, 300], scale: 10 },
   // ];
@@ -325,6 +328,59 @@ export default function Map() {
     ]
   },[])
 
+  // 時間を記録する（マイクロ秒単位の精度）
+  const recordTime = (data: string) => {
+    const now = new Date(); // 現在日時を取得
+    const time = now.toLocaleDateString("ja-JP") + " " + now.toLocaleTimeString("ja-JP");
+    // performance.now() で高精度時間を取得（μsに近い値）
+    const microseconds = Math.floor((performance.now() % 1000) * 1000); // ミリ秒からμsに変換
+    // 記録する時間フォーマット
+    const preciseTime = `${time}.${String(microseconds).padStart(6, "0")}`;
+
+    const content = `${preciseTime},${data}`
+    setRecords((prev) => [...prev, content]);
+  };
+  // CSVファイルを生成
+  const generateCSV = () => {
+    const header = "No,Time\n";
+    const rows = records.map((time, index) => `${index + 1},${time}`).join("\n");
+    const csvContent = header + rows;
+    const fileName = `time_records_${generateTimestamp()}`
+
+    downloadFile(csvContent, fileName, "text/csv");
+    setOpenedDownloadModal(false)
+    setRecords([])
+  };
+
+  // // LOGファイルを生成
+  // const generateLog = () => {
+  //   const logContent = records.map((time, index) => `[${index + 1}] ${time}`).join("\n");
+  //   downloadFile(logContent, "time_records.log", "text/plain");
+  // };
+
+  // ファイルダウンロード用関数
+  const downloadFile = (content: string, fileName: string, mimeType: string) => {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const generateTimestamp = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0"); // 2桁にする
+    const day = String(now.getDate()).padStart(2, "0");
+    const hours = String(now.getHours()).padStart(2, "0");
+    const minutes = String(now.getMinutes()).padStart(2, "0");
+    const seconds = String(now.getSeconds()).padStart(2, "0");
+  
+    return `${year}${month}${day}_${hours}${minutes}${seconds}`;
+  };
+
   return (
     <div className="w-full h-full relative">
       {onLive && (
@@ -380,6 +436,20 @@ export default function Map() {
                   </div>
                 ))
               }
+            </div>
+          </div>
+        )
+      }
+      {
+        openedDownloadModal && (
+          <div className="absolute top-0 left-0 w-screen h-screen bg-black bg-opacity-70 z-50 flex justify-center items-center" onClick={()=>setOpenedMenu(false)}>
+            <div className="bg-white p-5 rounded-md flex flex-col items-center space-y-5" onClick={(event) => event.stopPropagation()}>
+              <button
+                onClick={generateCSV}
+                className={"bg-teal-500 text-black text-sm w-36 h-12 rounded-md hover:bg-teal-700"}
+                >
+                csvファイルをダウンロード
+              </button>
             </div>
           </div>
         )
