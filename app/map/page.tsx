@@ -9,6 +9,7 @@ import Live from "@/components/map/mode/Live";
 import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted';
 import "react-toastify/dist/ReactToastify.css";
 import { toast, ToastContainer } from "react-toastify";
+import Archive from "@/components/map/mode/Archive";
 
 const apiHost = process.env.NEXT_PUBLIC_API_HOST || "http://localhost:8000"
 
@@ -18,13 +19,20 @@ type MapData = {
   // normal: [nx: number, ny: number, nz: number];
   // color: [r: number, g: number, b: number];
 };
+type TimeLog = {
+  start_time: string;
+  end_time: string;
+}
 
 export default function Map() {
   const [openedMenu, setOpenedMenu] = useState(false)
   const [mapData, setMapData] = useState<Array<MapData>>([])
   const [onLive, setOnLive] = useState(false)
   const [onArchive, setOnArchive] = useState(false)
+  const [archiveList, setArchiveList] = useState<Array<TimeLog>>([])
+  const [openedArchiveList, setOpenedArchiveList] = useState(false)
   const onLiveRef = useRef(false)
+  const onArchiveRef = useRef(false)
 
   const initialViewState = {
     // latitude: 31.568378,
@@ -39,6 +47,31 @@ export default function Map() {
   useEffect(() => {
     onLiveRef.current = onLive;
   }, [onLive]);
+
+  useEffect(() => {
+    onArchiveRef.current = onArchive;
+  }, [onArchive]);
+
+  const fetchTelemetryLog = async () => {
+    try {
+      const response = await fetch(`${apiHost}/api/v1/telemetry_log`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json()
+      setArchiveList(data.logs)
+      console.log(archiveList)
+    } catch (error) {
+      if (error instanceof Error) {
+        console.error('error:', error);
+        toast.error("取得エラー", {
+          position: "top-right",
+        })
+      }
+    } finally {
+      setOpenedMenu(false)
+    }
+  }
 
   const fetchLiveStream = async () => {
     console.log("live stream")
@@ -109,6 +142,87 @@ export default function Map() {
     } finally {
       setMapData([])
       setOnLive(false)
+    }
+  };
+
+  const fetchArchiveStream = async (span: TimeLog) => {
+    setOpenedArchiveList(false)
+    console.log("Archive stream")
+    // const controller = new AbortController();
+
+    try {
+      const response = await fetch(
+        `${apiHost}/api/v1/stream/location/archive`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            start_time: span.start_time,
+            end_time: span.end_time,
+          }),
+          // signal: controller.signal,
+        });
+      console.log(response)
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let buffer = '';
+      if (!reader) return
+        toast.success("接続完了! 受信中...", {
+          position: "top-right",
+      })
+
+      while (true) {
+        // onLiveがfalseの場合は中断
+        if (!onArchiveRef.current) {
+          console.log("Stream aborted");
+          // controller.abort(); // リクエストを中断
+          break;
+        }
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        // データをデコード
+        buffer += decoder.decode(value, { stream: true });
+
+        // 完全なJSONオブジェクトに変換
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? ""; // 最後の未完了部分を保持
+        lines.forEach((line) => {
+          if (line.trim()) {
+            const parsedData = JSON.parse(line);
+            console.log(parsedData)
+            const formatedData: MapData = {position:[parsedData.longitude, parsedData.latitude, parsedData.altitude], scale: 3}
+            setMapData((prevData) => [...prevData, formatedData]); // リアルタイム更新
+            // console.log(mapData)
+          }
+        });
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          console.log('Fetch aborted');
+          toast.error("Live配信が中断しました。", {
+            position: "top-right",
+          })
+        } else {
+          console.error('Error fetching stream:', error.message);
+          toast.error("接続エラー", {
+            position: "top-right",
+          })
+        }
+      } else {
+        console.error('Unknown error:', error);
+        toast.error("接続エラー", {
+          position: "top-right",
+        })
+      }
+    } finally {
+      setMapData([])
+      setOnArchive(false)
     }
   };
 
@@ -201,9 +315,11 @@ export default function Map() {
       {
         name: 'Archive',
         func: () => {
+          fetchTelemetryLog()
           setOnArchive(true)
           setOnLive(false)
           setOpenedMenu(false)
+          setOpenedArchiveList(true)
         }
       },
     ]
@@ -214,6 +330,11 @@ export default function Map() {
       {onLive && (
         <div className="absolute top-2 left-2 z-10">
           <Live />
+        </div>
+      )}
+      {onArchive && (
+        <div className="absolute top-2 left-2 z-10">
+          <Archive />
         </div>
       )}
       <div className="absolute top-2 right-2 z-10 bg-teal-500 p-1 rounded-md hover:bg-teal-700" onClick={()=>setOpenedMenu(true)}>
@@ -233,6 +354,30 @@ export default function Map() {
                     >
                     {mode.name}
                   </button>
+                ))
+              }
+            </div>
+          </div>
+        )
+      }
+      {
+        openedArchiveList && (
+          <div className="absolute top-0 left-0 w-screen h-screen bg-black bg-opacity-70 z-50 flex justify-center items-center" onClick={()=>setOpenedMenu(false)}>
+            <div className="bg-white p-5 rounded-md flex flex-col items-center space-y-5 overflow-y-auto max-h-4/5" onClick={(event) => event.stopPropagation()}>
+              {
+                archiveList.map((span,i)=>(
+                  <div className=" leading-none" key={i}>
+                    <div
+                      onClick={()=>fetchArchiveStream(span)}
+                      className={`bg-white text-gray-700 text-xs w-4/5 h-30 hover:bg-gray-300`}
+                      >
+                      {i+1}:<br />
+                      {span.start_time}<br />
+                            ~         <br />
+                      {span.end_time}
+                    </div>
+                    <hr className="w-full border-[1px] border-teal-700" />
+                  </div>
                 ))
               }
             </div>
