@@ -10,6 +10,7 @@ import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted';
 import "react-toastify/dist/ReactToastify.css";
 import { toast, ToastContainer } from "react-toastify";
 import Archive from "@/components/map/mode/Archive";
+import Counter from "@/components/map/Counter";
 
 const apiHost = process.env.NEXT_PUBLIC_API_HOST || "http://localhost:8000"
 
@@ -32,6 +33,7 @@ export default function Map() {
   const [archiveList, setArchiveList] = useState<Array<TimeLog>>([])
   const [openedArchiveList, setOpenedArchiveList] = useState(false)
   const [openedDownloadModal, setOpenedDownloadModal] = useState(false)
+  const [count, setCount] = useState(0)
   const onLiveRef = useRef(false)
   const onArchiveRef = useRef(false)
   const [records, setRecords] = useState<string[]>([]);
@@ -76,6 +78,7 @@ export default function Map() {
 
   const fetchLiveStream = async () => {
     console.log("live stream")
+    setCount(0)
     const controller = new AbortController();
 
     try {
@@ -117,6 +120,7 @@ export default function Map() {
             console.log(parsedData)
             const formatedData: MapData = {position:[parsedData.longitude, parsedData.latitude, parsedData.altitude], scale: 3}
             setMapData((prevData) => [...prevData, formatedData]); // リアルタイム更新
+            setCount((prev)=>{return ++prev})
             recordTime(`${formatedData.position[0]},${formatedData.position[1]},${formatedData.position[2]}`)
           }
         });
@@ -143,12 +147,14 @@ export default function Map() {
     } finally {
       setMapData([])
       setOnLive(false)
+      setCount(0)
       setOpenedDownloadModal(true)
     }
   };
 
   const fetchArchiveStream = async (span: TimeLog) => {
     setOpenedArchiveList(false)
+    setCount(0)
     console.log("Archive stream")
     // const controller = new AbortController();
 
@@ -197,8 +203,9 @@ export default function Map() {
           if (line.trim()) {
             const parsedData = JSON.parse(line);
             console.log(parsedData)
-            const formatedData: MapData = {position:[parsedData.longitude, parsedData.latitude, parsedData.altitude], scale: 3}
+            const formatedData: MapData = {position:[parsedData.longitude, parsedData.latitude, 100], scale: 3}
             setMapData((prevData) => [...prevData, formatedData]); // リアルタイム更新
+            setCount((prev)=>{return ++prev})
             // console.log(mapData)
           }
         });
@@ -225,6 +232,7 @@ export default function Map() {
     } finally {
       setMapData([])
       setOnArchive(false)
+      setCount(0)
     }
   };
 
@@ -418,11 +426,11 @@ export default function Map() {
       }
       {
         openedArchiveList && (
-          <div className="absolute top-0 left-0 w-screen h-screen bg-black bg-opacity-70 z-50 flex justify-center items-center" onClick={()=>setOpenedMenu(false)}>
-            <div className="bg-white p-5 rounded-md flex flex-col items-center space-y-5 overflow-y-auto max-h-4/5" onClick={(event) => event.stopPropagation()}>
+          <div className="absolute top-0 left-0 w-screen h-screen bg-black bg-opacity-70 z-50 flex justify-center items-center" onClick={()=>{setOpenedArchiveList(false);setOnArchive(false)}}>
+            <ul className="bg-white p-5 rounded-md flex flex-col items-center overflow-y-auto max-h-96" onClick={(event) => event.stopPropagation()}>
               {
                 archiveList.map((span,i)=>(
-                  <div className=" leading-none" key={i}>
+                  <li className=" leading-none" key={i}>
                     <div
                       onClick={()=>fetchArchiveStream(span)}
                       className={`bg-white text-gray-700 text-xs w-4/5 h-30 hover:bg-gray-300`}
@@ -433,10 +441,10 @@ export default function Map() {
                       {span.end_time}
                     </div>
                     <hr className="w-full border-[1px] border-teal-700" />
-                  </div>
+                  </li>
                 ))
               }
-            </div>
+            </ul>
           </div>
         )
       }
@@ -461,6 +469,9 @@ export default function Map() {
         layers={layers}
         style={{ width: "100%", height: "100%"}}
         />
+      {(onLive || onArchive) && (
+        <Counter num={count}/>
+      )}
       <ToastContainer />
       </div>
   );
