@@ -23,6 +23,7 @@ type MapData = {
 type TimeLog = {
   start_time: string;
   end_time: string;
+  location_count: number;
 }
 
 export default function Map() {
@@ -39,11 +40,13 @@ export default function Map() {
   const [records, setRecords] = useState<string[]>([]);
 
   const initialViewState = {
-    // latitude: 31.568378,
+    // latitude: 31.568378,鹿児島市
     // longitude: 130.710540,
-    latitude: 31.57194,
-    longitude: 130.545472,
-    zoom: 16,
+    // latitude: 31.57194,鹿児島大
+    // longitude: 130.545472,
+    latitude: 31.5707,
+    longitude: 130.54348,
+    zoom: 18,
     pitch: 50,
     bearing: 0,
   };
@@ -203,7 +206,7 @@ export default function Map() {
           if (line.trim()) {
             const parsedData = JSON.parse(line);
             console.log(parsedData)
-            const formatedData: MapData = {position:[parsedData.longitude, parsedData.latitude, 100], scale: 3}
+            const formatedData: MapData = {position:[parsedData.longitude, parsedData.latitude, parsedData.altitude+50 ], scale: 1}
             setMapData((prevData) => [...prevData, formatedData]); // リアルタイム更新
             setCount((prev)=>{return ++prev})
             // console.log(mapData)
@@ -427,7 +430,7 @@ export default function Map() {
       {
         openedArchiveList && (
           <div className="absolute top-0 left-0 w-screen h-screen bg-black bg-opacity-70 z-50 flex justify-center items-center" onClick={()=>{setOpenedArchiveList(false);setOnArchive(false)}}>
-            <ul className="bg-white p-5 rounded-md flex flex-col items-center overflow-y-auto max-h-96" onClick={(event) => event.stopPropagation()}>
+            <ul className="bg-white p-5 rounded-md flex flex-col items-center overflow-y-auto max-h-96 w-4/5" onClick={(event) => event.stopPropagation()}>
               {
                 archiveList.map((span,i)=>(
                   <li className=" leading-none" key={i}>
@@ -435,7 +438,7 @@ export default function Map() {
                       onClick={()=>fetchArchiveStream(span)}
                       className={`bg-white text-gray-700 text-xs w-4/5 h-30 hover:bg-gray-300`}
                       >
-                      {i+1}:<br />
+                      {i+1}: データ数 <span className="text-red-500">{span.location_count}</span><br />
                       {span.start_time}<br />
                             ~         <br />
                       {span.end_time}
