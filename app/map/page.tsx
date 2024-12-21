@@ -467,7 +467,12 @@ export default function Map() {
       }
       <DeckGL
         initialViewState={initialViewState}
-        controller
+        controller={{
+          dragRotate: true,
+          touchRotate: true,
+          doubleClickZoom: false,
+          keyboard: true,
+        }}
         getTooltip={({object}: PickingInfo) => object && object.name}
         layers={layers}
         style={{ width: "100%", height: "100%"}}
