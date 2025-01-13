@@ -25,6 +25,25 @@ type TimeLog = {
   end_time: string;
   location_count: number;
 }
+type LocalTimeLog = {
+  start_time: number;
+  end_time: number;
+}
+type LocalLocationLog = {
+  unixTime: number,
+  latitude: number,
+  longitude: number,
+  altitude: number,
+}
+
+const localStoragekeyPrefix = {
+  timestamp: "span",
+  location: "location"
+}
+
+type Flags = {
+  [key: number]: boolean; // 任意の文字列キーに対する型を定義
+}
 
 export default function Map() {
   const [openedMenu, setOpenedMenu] = useState(false)
@@ -38,6 +57,10 @@ export default function Map() {
   const onLiveRef = useRef(false)
   const onArchiveRef = useRef(false)
   const [records, setRecords] = useState<string[]>([]);
+  const [localTimeLogs, setLocalTimeLogs] = useState<LocalTimeLog[]>([])
+  const [selectedIndex, setSelectedIndex] = useState<number|null>(null)
+  const [flags, setFlags] = useState<Flags>({}) // ローカルデータをダウンロードしたかどうかのフラグ
+  const [isLoading, setIsLoading] = useState(false)
 
   const initialViewState = {
     // latitude: 31.568378,鹿児島市
@@ -58,6 +81,13 @@ export default function Map() {
   useEffect(() => {
     onArchiveRef.current = onArchive;
   }, [onArchive]);
+
+  useEffect(() => {
+    if (!openedDownloadModal){
+      setLocalTimeLogs([])
+      setSelectedIndex(null)
+    }
+  }, [openedDownloadModal]);
 
   const fetchTelemetryLog = async () => {
     try {
@@ -83,7 +113,9 @@ export default function Map() {
     console.log("live stream")
     setCount(0)
     const controller = new AbortController();
-
+    const startTime = Date.now();
+    let count = 0;
+    saveTimestampLocally(startTime)
     try {
       const response = await fetch(
         `${apiHost}/api/v1/stream/location/live`,
@@ -122,9 +154,13 @@ export default function Map() {
             const parsedData = JSON.parse(line);
             console.log(parsedData)
             const formatedData: MapData = {position:[parsedData.longitude, parsedData.latitude, parsedData.altitude], scale: 3}
-            setMapData((prevData) => [...prevData, formatedData]); // リアルタイム更新
+            // setMapData((prevData) => [...prevData, formatedData]); // リアルタイム更新
+            const currentTime = Date.now() / 1000;
+            const formatedLocalData: LocalLocationLog = {unixTime: currentTime, latitude: parsedData.latitude, longitude: parsedData.longitude, altitude: parsedData.altitude}
+            saveLocationLocally(startTime, count, formatedLocalData)
             setCount((prev)=>{return ++prev})
             recordTime(`${formatedData.position[0]},${formatedData.position[1]},${formatedData.position[2]}`)
+            ++count
           }
         });
       }
@@ -151,7 +187,9 @@ export default function Map() {
       setMapData([])
       setOnLive(false)
       setCount(0)
-      setOpenedDownloadModal(true)
+      // setOpenedDownloadModal(true)
+      const endTime = Date.now()
+      updateTimestampLocally(startTime, endTime)
     }
   };
 
@@ -336,6 +374,14 @@ export default function Map() {
           setOpenedArchiveList(true)
         }
       },
+      {
+        name: 'Local',
+        func: () => {
+          setOpenedMenu(false)
+          loadTimestampListLocally()
+          setOpenedDownloadModal(true)
+        }
+      },
     ]
   },[])
 
@@ -352,22 +398,26 @@ export default function Map() {
     setRecords((prev) => [...prev, content]);
   };
   // CSVファイルを生成
-  const generateCSV = () => {
-    const header = "No,Time\n";
-    const rows = records.map((time, index) => `${index + 1},${time}`).join("\n");
+  // const generateCSV = () => {
+  //   const header = "No,Time\n";
+  //   const rows = records.map((time, index) => `${index + 1},${time}`).join("\n");
+  //   const csvContent = header + rows;
+  //   const fileName = `time_records_${generateTimestamp()}`
+
+  //   downloadFile(csvContent, fileName, "text/csv");
+  //   setOpenedDownloadModal(false)
+  //   setRecords([])
+  // };
+  const generateCSV = (time: number): boolean => {
+    const header = "No,Time,Latitude,Longitude,Altitude\n";
+    const localLocations = loadLocationLocally(time)
+    const rows = localLocations.map((ll, i) => `${i+1},${ll.unixTime},${ll.latitude},${ll.longitude},${ll.altitude}`).join("\n");
     const csvContent = header + rows;
-    const fileName = `time_records_${generateTimestamp()}`
+    const fileName = `location_records_${generateTimestamp()}`
 
     downloadFile(csvContent, fileName, "text/csv");
-    setOpenedDownloadModal(false)
-    setRecords([])
+    return true
   };
-
-  // // LOGファイルを生成
-  // const generateLog = () => {
-  //   const logContent = records.map((time, index) => `[${index + 1}] ${time}`).join("\n");
-  //   downloadFile(logContent, "time_records.log", "text/plain");
-  // };
 
   // ファイルダウンロード用関数
   const downloadFile = (content: string, fileName: string, mimeType: string) => {
@@ -390,6 +440,103 @@ export default function Map() {
     const seconds = String(now.getSeconds()).padStart(2, "0");
   
     return `${year}${month}${day}_${hours}${minutes}${seconds}`;
+  };
+
+  const saveTimestampLocally = (time: number) => {
+    const key = `${localStoragekeyPrefix.timestamp}_${time}`
+    localStorage.setItem(key, "")
+  }
+  const updateTimestampLocally = (startTime: number, endTime: number) => {
+    const key = `${localStoragekeyPrefix.timestamp}_${startTime}`
+    localStorage.setItem(key, endTime.toString())
+  }
+  const loadTimestampListLocally = () => {
+    const prefix = `${localStoragekeyPrefix.timestamp}_`
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(prefix)) {
+        const value = localStorage.getItem(key) || "不明";
+        const data: LocalTimeLog = {start_time: Number(key.split(prefix)[1]), end_time: Number(value)}
+        setLocalTimeLogs((prev) => [...prev, data])
+      }
+    }
+  }
+  const deleteTimestampLocally = (time: number) => {
+    const prefix = `${localStoragekeyPrefix.timestamp}_${time}`
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(prefix)) {
+        localStorage.removeItem(key);
+      }
+    }
+  }
+  const saveLocationLocally = (time: number, id: number, data: LocalLocationLog) => {
+    const key = `${localStoragekeyPrefix.location}_${time}_${id}`
+    localStorage.setItem(key, JSON.stringify(data))
+  }
+  const loadLocationLocally = (time: number): LocalLocationLog[] => {
+    const result: LocalLocationLog[] = [];
+    const prefix = `${localStoragekeyPrefix.location}_${time}`
+    const keys: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(prefix)) {
+        keys.push(key);
+      }
+    }
+    keys.sort(); // タイムスタンプ順にソートする
+    for (const key of keys) {
+      const value = localStorage.getItem(key) || "不明";
+      const parsedData = JSON.parse(value);
+      result.push(parsedData);
+    }
+    return result;
+  }
+  const deleteLocationLocally = (time: number) => {
+    const prefix = `${localStoragekeyPrefix.location}_${time}`
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(prefix)) {
+        localStorage.removeItem(key);
+      }
+    }
+  }
+
+  const formatJPTime = (isoDate: string|number): string => { // ex. 2024-12-16T12:30:00.000000Z
+    const date = new Date(isoDate);
+    const options: Intl.DateTimeFormatOptions = {
+      timeZone: "Asia/Tokyo",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    };
+    const jstDate = date.toLocaleString("ja-JP", options);
+    return jstDate
+  }
+
+  const handleDownload = (time: number) => {
+    const success = generateCSV(time); // CSV生成の結果を取得
+    if (success) {
+      setFlags((prevFlags) => ({
+        ...prevFlags,
+        [time]: true,
+      }));
+    }
+  };
+
+  const handleDelete = (time: number) => {
+    setIsLoading(true)
+    deleteLocationLocally(time);
+    deleteTimestampLocally(time);
+    setFlags((prevFlags) =>
+      Object.fromEntries(
+        Object.entries(prevFlags).filter(([key]) => key !== String(time))
+      )
+    )
+    setIsLoading(false)
   };
 
   return (
@@ -430,18 +577,18 @@ export default function Map() {
       {
         openedArchiveList && (
           <div className="absolute top-0 left-0 w-screen h-screen bg-black bg-opacity-70 z-50 flex justify-center items-center" onClick={()=>{setOpenedArchiveList(false);setOnArchive(false)}}>
-            <ul className="bg-white p-5 rounded-md flex flex-col items-center overflow-y-auto max-h-96 w-4/5" onClick={(event) => event.stopPropagation()}>
+            <ul className="bg-white p-5 rounded-md flex flex-col items-center overflow-y-auto max-h-96 w-4/5 space-y-2" onClick={(event) => event.stopPropagation()}>
               {
                 archiveList.map((span,i)=>(
-                  <li className=" leading-none" key={i}>
+                  <li className="w-full leading-none" key={i}>
                     <div
                       onClick={()=>fetchArchiveStream(span)}
-                      className={`bg-white text-gray-700 text-xs w-4/5 h-30 hover:bg-gray-300`}
+                      className={`bg-white text-gray-700 text-sm w-4/5 h-30 hover:bg-gray-300`}
                       >
                       {i+1}: データ数 <span className="text-red-500">{span.location_count}</span><br />
-                      {span.start_time}<br />
+                      {formatJPTime(span.start_time)}<br />
                             ~         <br />
-                      {span.end_time}
+                      {formatJPTime(span.end_time)}
                     </div>
                     <hr className="w-full border-[1px] border-teal-700" />
                   </li>
@@ -453,15 +600,48 @@ export default function Map() {
       }
       {
         openedDownloadModal && (
-          <div className="absolute top-0 left-0 w-screen h-screen bg-black bg-opacity-70 z-50 flex justify-center items-center" onClick={()=>setOpenedMenu(false)}>
-            <div className="bg-white p-5 rounded-md flex flex-col items-center space-y-5" onClick={(event) => event.stopPropagation()}>
-              <button
-                onClick={generateCSV}
-                className={"bg-teal-500 text-black text-sm w-36 h-12 rounded-md hover:bg-teal-700"}
-                >
-                csvファイルをダウンロード
-              </button>
-            </div>
+          <div className="absolute top-0 left-0 w-screen h-screen bg-black bg-opacity-70 z-50 flex justify-center items-center" onClick={()=>setOpenedDownloadModal(false)}>
+            <ul className="bg-white p-5 rounded-md flex flex-col items-center overflow-y-auto max-h-96 w-4/5 space-y-2" onClick={(event) => event.stopPropagation()}>
+              {
+                localTimeLogs.length > 0 ? localTimeLogs.map((span,i)=>(
+                  <li className="w-full leading-none" key={i}>
+                    <div
+                      onClick={()=>setSelectedIndex(i)}
+                      className={`bg-white text-gray-700 text-xs w-full rounded-md h-30 hover:bg-gray-300`}
+                      >
+                      {i+1}<br />
+                      {formatJPTime(span.start_time)}<br />
+                            ~         <br />
+                      {formatJPTime(span.end_time)}
+                    </div>
+                    {
+                      i == selectedIndex && (
+                        <div className="flex justify-end space-x-3 text-slate-900">
+                          <button
+                            onClick={()=>handleDownload(span.start_time)}
+                            className={"bg-teal-500 text-sm p-2 rounded-md hover:bg-teal-700 disabled:bg-gray-400"}
+                            disabled={isLoading}
+                            >
+                            ダウンロード(.csv)
+                          </button>
+                          { !isLoading
+                           ? <button
+                              onClick={()=>handleDelete(span.start_time)}
+                              className={"bg-red-400 text-sm p-2 rounded-md hover:bg-red-700 disabled:bg-gray-400"}
+                              disabled={!flags[span.start_time]}
+                              >
+                              削除
+                            </button>
+                            : <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                          }
+                        </div>
+                      )
+                    }
+                    <hr className="w-full border-[1px] border-teal-700" />
+                  </li>
+                )): <div className="text-black">データが存在しません</div>
+              }
+            </ul>
           </div>
         )
       }
@@ -481,6 +661,6 @@ export default function Map() {
         <Counter num={count}/>
       )}
       <ToastContainer />
-      </div>
+    </div>
   );
 }
