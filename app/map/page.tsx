@@ -74,6 +74,16 @@ export default function Map() {
     bearing: 0,
   };
 
+  useEffect(()=>{ // テスト用
+    const time = 1111112111111
+    const data: LocalLocationLog = {unixTime: time/1000, latitude: 0.0, longitude: 0.0, altitude: 0.0}
+    localStorage.setItem(`${localStoragekeyPrefix.timestamp}_${time}`, time.toString())
+    for (let i=0; i<30; i++){
+      const key = `${localStoragekeyPrefix.location}_${time}_${i}`
+      localStorage.setItem(key, JSON.stringify(data))
+    }
+  },[])
+
   useEffect(() => {
     onLiveRef.current = onLive;
   }, [onLive]);
@@ -461,14 +471,17 @@ export default function Map() {
       }
     }
   }
-  const deleteTimestampLocally = (time: number) => {
-    const prefix = `${localStoragekeyPrefix.timestamp}_${time}`
-    for (let i = 0; i < localStorage.length; i++) {
+  const deleteTimestampLocally = (time: number): boolean => {
+    const locationPrefix = `${localStoragekeyPrefix.location}_${time}`
+    const timestamp = `${localStoragekeyPrefix.timestamp}_${time}`
+    for (let i = localStorage.length - 1; i >= 0; i--) {
       const key = localStorage.key(i);
-      if (key && key.startsWith(prefix)) {
-        localStorage.removeItem(key);
-      }
+      if (key && key.startsWith(locationPrefix)) return false
     }
+    if (localStorage.getItem(timestamp) !== null) {
+      localStorage.removeItem(timestamp);
+    }
+    return true
   }
   const saveLocationLocally = (time: number, id: number, data: LocalLocationLog) => {
     const key = `${localStoragekeyPrefix.location}_${time}_${id}`
@@ -494,9 +507,10 @@ export default function Map() {
   }
   const deleteLocationLocally = (time: number) => {
     const prefix = `${localStoragekeyPrefix.location}_${time}`
-    for (let i = 0; i < localStorage.length; i++) {
+    for (let i = localStorage.length - 1; i >= 0; i--) {
       const key = localStorage.key(i);
       if (key && key.startsWith(prefix)) {
+        console.log(key)
         localStorage.removeItem(key);
       }
     }
@@ -529,13 +543,17 @@ export default function Map() {
 
   const handleDelete = (time: number) => {
     setIsLoading(true)
-    deleteLocationLocally(time);
-    deleteTimestampLocally(time);
+    while (true) {
+      deleteLocationLocally(time)
+      const ok = deleteTimestampLocally(time)
+      if (ok) break
+    }
     setFlags((prevFlags) =>
       Object.fromEntries(
         Object.entries(prevFlags).filter(([key]) => key !== String(time))
       )
     )
+    setLocalTimeLogs((prev) => prev.filter((item) => item.start_time !== time));
     setIsLoading(false)
   };
 
