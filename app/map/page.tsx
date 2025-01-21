@@ -181,7 +181,7 @@ export default function Map() {
             const parsedData = JSON.parse(line) as Location;
             console.log(parsedData)
             const formatedData: MapData = formatLocation(parsedData)
-            // setMapData((prevData) => [...prevData, formatedData]); // リアルタイム更新
+            setMapData((prevData) => [...prevData, formatedData]); // リアルタイム更新
             const currentTime = Date.now() / 1000;
             const formatedLocalData: LocalLocationLog = {unixTime: currentTime, latitude: parsedData.latitude, longitude: parsedData.longitude, altitude: parsedData.altitude}
             saveLocationLocally(startTime, count, formatedLocalData)
