@@ -13,6 +13,14 @@ import Archive from "@/components/map/mode/Archive";
 import Counter from "@/components/map/Counter";
 
 const apiHost = process.env.NEXT_PUBLIC_API_HOST || "http://localhost:8000"
+const deployment = process.env.NEXT_PUBLIC_DEPLOYMENT || "develop"
+const defaultLocation = {
+  latitude: Number(process.env.NEXT_PUBLIC_DEFAULT_LATITUDE) || 0,
+  longitude: Number(process.env.NEXT_PUBLIC_DEFAULT_LONGITUDE) || 0,
+  altitude: Number(process.env.NEXT_PUBLIC_DEFAULT_ALTITUDE) || 0,
+  baseAltitude: Number(process.env.NEXT_PUBLIC_DEFAULT_BASE_ALTITUDE) || 0,
+  pointScale: Number(process.env.NEXT_PUBLIC_DEFAULT_POINT_SCALE) || 1,
+}
 
 type MapData = {
   position: [x: number, y: number, z: number];
@@ -20,6 +28,13 @@ type MapData = {
   // normal: [nx: number, ny: number, nz: number];
   // color: [r: number, g: number, b: number];
 };
+type Location = {
+  timestamp: number,
+  latitude: number,
+  longitude: number,
+  altitude: number,
+  speed: number,
+}
 type TimeLog = {
   start_time: string;
   end_time: string;
@@ -75,12 +90,14 @@ export default function Map() {
   };
 
   useEffect(()=>{ // テスト用
-    const time = 1111112111111
-    const data: LocalLocationLog = {unixTime: time/1000, latitude: 0.0, longitude: 0.0, altitude: 0.0}
-    localStorage.setItem(`${localStoragekeyPrefix.timestamp}_${time}`, time.toString())
-    for (let i=0; i<30; i++){
-      const key = `${localStoragekeyPrefix.location}_${time}_${i}`
-      localStorage.setItem(key, JSON.stringify(data))
+    if (deployment === "local") {
+      const time = 1111112111111
+      const data: LocalLocationLog = {unixTime: time/1000, latitude: 0.0, longitude: 0.0, altitude: 0.0}
+      localStorage.setItem(`${localStoragekeyPrefix.timestamp}_${time}`, time.toString())
+      for (let i=0; i<30; i++){
+        const key = `${localStoragekeyPrefix.location}_${time}_${i}`
+        localStorage.setItem(key, JSON.stringify(data))
+      }
     }
   },[])
 
@@ -161,9 +178,9 @@ export default function Map() {
         buffer = lines.pop() ?? ""; // 最後の未完了部分を保持
         lines.forEach((line) => {
           if (line.trim()) {
-            const parsedData = JSON.parse(line);
+            const parsedData = JSON.parse(line) as Location;
             console.log(parsedData)
-            const formatedData: MapData = {position:[parsedData.longitude, parsedData.latitude, parsedData.altitude], scale: 3}
+            const formatedData: MapData = formatLocation(parsedData)
             // setMapData((prevData) => [...prevData, formatedData]); // リアルタイム更新
             const currentTime = Date.now() / 1000;
             const formatedLocalData: LocalLocationLog = {unixTime: currentTime, latitude: parsedData.latitude, longitude: parsedData.longitude, altitude: parsedData.altitude}
@@ -252,9 +269,9 @@ export default function Map() {
         buffer = lines.pop() ?? ""; // 最後の未完了部分を保持
         lines.forEach((line) => {
           if (line.trim()) {
-            const parsedData = JSON.parse(line);
+            const parsedData = JSON.parse(line) as Location;
             console.log(parsedData)
-            const formatedData: MapData = {position:[parsedData.longitude, parsedData.latitude, parsedData.altitude+50 ], scale: 1}
+            const formatedData: MapData = formatLocation(parsedData)
             setMapData((prevData) => [...prevData, formatedData]); // リアルタイム更新
             setCount((prev)=>{return ++prev})
             // console.log(mapData)
@@ -286,6 +303,18 @@ export default function Map() {
       setCount(0)
     }
   };
+
+  const formatLocation = (input: Location): MapData => {
+    const latitude = input.latitude === 0 ? defaultLocation.latitude : input.latitude
+    const longitude = input.longitude === 0 ? defaultLocation.longitude : input.longitude
+    const altitude = input.altitude + defaultLocation.baseAltitude
+    const scale = defaultLocation.pointScale
+
+    return {
+      position: [longitude, latitude, altitude],
+      scale,
+    }
+  }
 
   console.log(mapData)
   console.log(records)
