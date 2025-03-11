@@ -21,6 +21,12 @@ const defaultLocation = {
   baseAltitude: Number(process.env.NEXT_PUBLIC_DEFAULT_BASE_ALTITUDE) || 0,
   pointScale: Number(process.env.NEXT_PUBLIC_DEFAULT_POINT_SCALE) || 1,
 }
+enum AltitudeAttr {
+  Ellipsoid,
+  AGL,
+  MSL,
+}
+const altitudeAttr = AltitudeAttr[process.env.NEXT_PUBLIC_ALTITUDE_ATTRIBUTE as keyof typeof AltitudeAttr] ?? AltitudeAttr.Ellipsoid;
 
 type MapData = {
   position: [x: number, y: number, z: number];
@@ -272,6 +278,7 @@ export default function Map() {
             const parsedData = JSON.parse(line) as Location;
             console.log(parsedData)
             const formatedData: MapData = formatLocation(parsedData)
+            // const formatedData: MapData = await promiseFormatLocation(parsedData)
             setMapData((prevData) => [...prevData, formatedData]); // リアルタイム更新
             setCount((prev)=>{return ++prev})
             // console.log(mapData)
@@ -316,11 +323,51 @@ export default function Map() {
     }
   }
 
+  const promiseFormatLocation = async (input: Location): Promise<MapData> => {
+    const latitude = input.latitude === 0 ? defaultLocation.latitude : input.latitude
+    const longitude = input.longitude === 0 ? defaultLocation.longitude : input.longitude
+    const scale = defaultLocation.pointScale
+    let altitude: number = 0
+    if (altitudeAttr === AltitudeAttr.AGL) altitude = await getAGLHeight(latitude, longitude, input.altitude)
+    if (altitudeAttr === AltitudeAttr.MSL) altitude = await getMSLHeight(latitude, longitude, input.altitude)
+    if (altitudeAttr === AltitudeAttr.Ellipsoid) altitude = input.altitude + defaultLocation.baseAltitude
+
+    return {
+      position: [longitude, latitude, altitude],
+      scale,
+    }
+  }
+
   console.log(mapData)
   console.log(records)
   // const sphereData = [
   //   { position: [130.5571, 31.5965, 300], scale: 10 },
   // ];
+
+  async function getMSLHeight(lat: number, lon: number, ellipsoidalHeight: number): Promise<number> {
+    const response = await fetch(`https://geographiclib.sourceforge.io/cgi-bin/GeoidEval?input=${lat}%20${lon}`,{mode: "no-cors"});
+    const geoidHeight = parseFloat(await response.text());
+
+    const mslHeight = ellipsoidalHeight - geoidHeight;
+    return mslHeight;
+  }
+  async function getAGLHeight(lat: number, lon: number, ellipsoidalHeight: number): Promise<number> {
+    // 1. MSL（Mean Sea Level）を求める
+    const response1 = await fetch(`https://geographiclib.sourceforge.io/cgi-bin/GeoidEval?input=${lat}%20${lon}`,{mode: "no-cors"});
+    const geoidHeight = parseFloat(await response1.text());
+    const mslHeight = ellipsoidalHeight - geoidHeight;
+
+    // 2. 地表面高度（DEM）を取得
+    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAP_API_KEY; // Google APIキーを設定
+    const response2 = await fetch(`https://maps.googleapis.com/maps/api/elevation/json?locations=${lat},${lon}&key=${apiKey}`);
+    const elevationData = await response2.json();
+    const groundElevation = elevationData.results[0].elevation;
+
+    // 3. AGL（Above Ground Level）を計算
+    const aglHeight = mslHeight - groundElevation;
+
+    return aglHeight;
+}
 
   const layers = [
     new Tile3DLayer({
