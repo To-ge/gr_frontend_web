@@ -11,9 +11,10 @@ import "react-toastify/dist/ReactToastify.css";
 import { toast, ToastContainer } from "react-toastify";
 import Archive from "@/components/map/mode/Archive";
 import Counter from "@/components/map/Counter";
+import { apiHost, deployment } from "@/lib/environments";
+import { checkSessionExpiration } from "@/lib/session";
+import { useRouter } from "next/navigation";
 
-const apiHost = process.env.NEXT_PUBLIC_API_HOST || "http://localhost:8000"
-const deployment = process.env.NEXT_PUBLIC_DEPLOYMENT || "develop"
 const defaultLocation = {
   latitude: Number(process.env.NEXT_PUBLIC_DEFAULT_LATITUDE) || 0,
   longitude: Number(process.env.NEXT_PUBLIC_DEFAULT_LONGITUDE) || 0,
@@ -82,6 +83,7 @@ export default function Map() {
   const [selectedIndex, setSelectedIndex] = useState<number|null>(null)
   const [flags, setFlags] = useState<Flags>({}) // ローカルデータをダウンロードしたかどうかのフラグ
   const [isLoading, setIsLoading] = useState(false)
+  const router = useRouter()
 
   const initialViewState = {
     // latitude: 31.568378,鹿児島市
@@ -107,6 +109,14 @@ export default function Map() {
     }
   },[])
 
+  useEffect(()=>{
+    const checkSession = async ()=>{
+      const ok = await checkSessionExpiration()
+      if (!ok) router.push('/login')
+    }
+    checkSession()
+  },[router])
+
   useEffect(() => {
     onLiveRef.current = onLive;
   }, [onLive]);
@@ -124,7 +134,7 @@ export default function Map() {
 
   const fetchTelemetryLog = async () => {
     try {
-      const response = await fetch(`${apiHost}/api/v1/telemetry_log`);
+      const response = await fetch(`${apiHost}/api/v1/telemetry_log`,{credentials: 'include'});
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -152,7 +162,7 @@ export default function Map() {
     try {
       const response = await fetch(
         `${apiHost}/api/v1/stream/location/live`,
-        { signal: controller.signal }
+        { signal: controller.signal, credentials: 'include' }
       );
       console.log(response)
       if (!response.ok) {
@@ -243,6 +253,7 @@ export default function Map() {
             start_time: span.start_time,
             end_time: span.end_time,
           }),
+          credentials: 'include',
           // signal: controller.signal,
         });
       console.log(response)

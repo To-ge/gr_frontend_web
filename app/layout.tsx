@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
-import Menu from "@/components/MenuBar";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -32,9 +31,6 @@ export default function RootLayout({
       >
         <div className="w-screen h-screen relative">
           {children}
-          <div className="absolute bottom-0 left-0 z-30 fixed">
-            <Menu />
-          </div>
         </div>
       </body>
     </html>

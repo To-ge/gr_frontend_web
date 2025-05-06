@@ -1,4 +1,5 @@
 import PaperViewer from "@/components/home/PaperViewer";
+import LogoutButton from "@/components/LogoutButton";
 
 const draftKey = process.env.NEXT_PUBLIC_MICROCMS_DRAFT_KEY
 
@@ -34,7 +35,10 @@ function getAge(birthday: string): number {
 export default async function Home() {
   const profile = await getProfile()
   return (
-    <div className="w-full h-full bg-white text-black">
+    <div className="w-full h-full bg-white text-black relative">
+      <div className="absolute top-2 right-2">
+        <LogoutButton />
+      </div>
       <div className="text-3xl font-bold text-gray-600 w-full py-20 text-center underline">{profile.title}</div>
       <div className="w-full p-8 flex justify-around">
         <section className="mb-12 w-1/3">
