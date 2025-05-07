@@ -1,39 +1,28 @@
 # gr_frontend_web
 卒業研究のフロントエンド（Web）のプログラム
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## 概要
+私の大学では毎年一度ハイブリッドロケットの打ち上げを行なっています。
+私はこのプロジェクトに関わり、「リアルタイムロケット軌道表示(RTTD)システムの開発と評価」という研究テーマに取り組みました。
+ロケットに搭載した人工衛星で取得した位置情報をリアルタイムにブラウザのマップUI上に表示することができます。
+このリポジトリはRTTDシステムのフロントエンドを担っています。
 
-## Getting Started
+## RTTDシステムイメージ図
 
-First, run the development server:
+![RTTDシステムイメージ図](/docs/image/sys-image.png)
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## 使用技術
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+| Category          | Technology Stack             |
+| ----------------- | ---------------------------- |
+| Main              | TypeScript, Next.js          |
+| Map               | deck.gl                      |
+| Style             | TailwindCSS                  |
+| Infrastructure    | Vercel                       |
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## システム構成図
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+![システム構成図](/docs/image/sys-arch.png)
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### 関連リポジトリ
+- [バックエンド](https://github.com/To-ge/gr_backend_go)
