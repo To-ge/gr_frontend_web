@@ -42,10 +42,16 @@ type Location = {
   altitude: number,
   speed: number,
 }
+type TimeLogWrap = {
+  is_public: boolean;
+  logs: TimeLog[]
+}
 type TimeLog = {
+  id: number;
   start_time: string;
   end_time: string;
   location_count: number;
+  is_public: boolean;
 }
 type LocalTimeLog = {
   start_time: number;
@@ -72,7 +78,7 @@ export default function Map() {
   const [mapData, setMapData] = useState<Array<MapData>>([])
   const [onLive, setOnLive] = useState(false)
   const [onArchive, setOnArchive] = useState(false)
-  const [archiveList, setArchiveList] = useState<Array<TimeLog>>([])
+  const [archiveList, setArchiveList] = useState<TimeLogWrap|null>(null)
   const [openedArchiveList, setOpenedArchiveList] = useState(false)
   const [openedDownloadModal, setOpenedDownloadModal] = useState(false)
   const [count, setCount] = useState(0)
@@ -139,7 +145,7 @@ export default function Map() {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const data = await response.json()
-      setArchiveList(data.logs)
+      setArchiveList(data)
     } catch (error) {
       if (error instanceof Error) {
         console.error('error:', error);
@@ -349,8 +355,6 @@ export default function Map() {
     }
   }
 
-  console.log(mapData)
-  console.log(records)
   // const sphereData = [
   //   { position: [130.5571, 31.5965, 300], scale: 10 },
   // ];
@@ -644,6 +648,38 @@ export default function Map() {
     setIsLoading(false)
   };
 
+  const toggleTelemetryLogVisibility = async (id: number, visible: boolean) => {
+    try {
+      const response = await fetch(`${apiHost}/api/v1/telemetry_log/visibility`,{
+        method: "PATCH",
+        credentials: 'include',
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id,
+          visible,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json()
+      toast.success(data.message, {
+        position: "top-right",
+      })
+      fetchTelemetryLog()
+    } catch (error) {
+      if (error instanceof Error) {
+        console.error('error:', error);
+        toast.error("取得エラー", {
+          position: "top-right",
+        })
+      }
+    }
+  }
+
+
   return (
     <div className="w-full h-full relative">
       {onLive && (
@@ -682,24 +718,35 @@ export default function Map() {
       {
         openedArchiveList && (
           <div className="absolute top-0 left-0 w-screen h-screen bg-black bg-opacity-70 z-50 flex justify-center items-center" onClick={()=>{setOpenedArchiveList(false);setOnArchive(false)}}>
-            <ul className="bg-white p-5 rounded-md flex flex-col items-center overflow-y-auto max-h-96 w-4/5 space-y-2" onClick={(event) => event.stopPropagation()}>
-              {
-                archiveList.map((span,i)=>(
-                  <li className="w-full leading-none" key={i}>
-                    <div
-                      onClick={()=>fetchArchiveStream(span)}
-                      className={`bg-white text-gray-700 text-sm w-4/5 h-30 hover:bg-gray-300`}
-                      >
-                      {i+1}: データ数 <span className="text-red-500">{span.location_count}</span><br />
-                      {formatJPTime(span.start_time)}<br />
-                            ~         <br />
-                      {formatJPTime(span.end_time)}
-                    </div>
-                    <hr className="w-full border-[1px] border-teal-700" />
-                  </li>
-                ))
-              }
-            </ul>
+            {
+              !archiveList || archiveList?.logs.length == 0 ?
+              <div className="text-white">データが存在しません</div>:
+              <ul className="bg-white p-5 rounded-md flex flex-col items-center overflow-y-auto max-h-96 w-4/5 space-y-2" onClick={(event) => event.stopPropagation()}>
+                {
+                  archiveList.logs.map((span,i)=>(
+                    <li className="w-full leading-none" key={i}>
+                      {!archiveList.is_public &&
+                        <input
+                          type="checkbox"
+                          checked={span.is_public}
+                          onChange={(e)=>toggleTelemetryLogVisibility(span.id, !span.is_public)}
+                        />
+                      }
+                      <div
+                        onClick={()=>fetchArchiveStream(span)}
+                        className={`bg-white text-gray-700 text-sm w-4/5 h-30 hover:bg-gray-300`}
+                        >
+                        {i+1}: データ数 <span className="text-red-500">{span.location_count}</span><br />
+                        {formatJPTime(span.start_time)}<br />
+                              ~         <br />
+                        {formatJPTime(span.end_time)}
+                      </div>
+                      <hr className="w-full border-[1px] border-teal-700" />
+                    </li>
+                  ))
+                }
+              </ul>
+            }
           </div>
         )
       }
